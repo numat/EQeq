@@ -36,7 +36,9 @@
 #include <iostream>        // To read files
 #include <fstream>        // To output files
 #include <sstream>
+#include <cstring>
 #include <string>
+#include <algorithm>
 #include <vector>
 #include <map>            // For string enumeration (C++ specific)
 #include <cmath>        // For basic math functions
@@ -162,8 +164,8 @@ class IonizationDatum {
 void DetermineReciprocalLatticeVectors();
 double GetJ(int i, int j);
 void InitializeStringAtomLabelsEnumeration();
-void LoadIonizationData(string filename);
-void LoadChargeCenters(string filename);
+void LoadIonizationData(const char *filename);
+void LoadChargeCenters(const char *filename);
 void LoadCIFData(string data);
 void LoadCIFFile(string filename); // Reads in CIF files, periodicity can be switched off
 string OutputCIFData(); 
@@ -214,46 +216,65 @@ int chargePrecision = 3; // Number of digits to use for point charges
 int mR = 2;  int mK = 2;
 int aVnum = mR; int bVnum = mR; int cVnum = mR; // Number of unit cells to consider in per. calc. ("real space")
 int hVnum = mK; int jVnum = mK; int kVnum = mK; // Number of unit cells to consider in per. calc. ("frequency space")
+string method = "direct";
 
 // Function to compile down to C. Used by the Python wrapper.
 extern "C" {
-    const char *run(char *data, char *outputType);
+char *run(const char *data, const char *outputType, double _lambda, float _hI0,
+          int _chargePrecision, const char *_method, int _mR, int _mK,
+          double _eta, const char *ionizationDataFilename,
+          const char *chargeCentersFilename);
 }
 
 /*****************************************************************************/
 /*****************************************************************************/
 
 int main (int argc, char *argv[]) {
-    string method;
     if (argc <= 1) { cout << "Error, invalid input!" << endl; exit(1); }
     if (argc > 2) lambda = atof(argv[2]); // The dielectric screening parameter (optional, default value above)
     if (argc > 3) hI0 = atof(argv[3]); // The electron affinity of hydrogen (optional, default value above)
     if (argc > 4) chargePrecision = atoi(argv[4]); // Num of digits to use for charges (optional, default value above)
-    if (argc > 5) {
-        method = argv[5];
-        if ((method == "NonPeriodic")||(method == "Nonperiodic")||(method == "nonperiodic")) isPeriodic = false;
-        else
-        if ((method == "Ewald")||(method == "ewald")) useEwardSums = true;
-        else
-        useEwardSums = false; // Direct sums are used if the 5th argument is misspelled
-    }
+    if (argc > 5) method = argv[5];
     if (argc > 6) mR = atoi(argv[6]);
     if (argc > 7) mK = atoi(argv[7]);
     if (argc > 8) eta = atof(argv[8]);
 
     // The only mandatory parameter is the input file/stream parameter
-    run(argv[1], (char *)"files");
+    run(argv[1], (const char *)"files", lambda, hI0, chargePrecision, method.c_str(),
+        mR, mK, eta, (const char *)"ionizationdata.dat", (const char *)"chargecenters.dat");
     return 0;
 }
 /*****************************************************************************/
-const char *run(char *data, char *outputType) {
-    string input, type, method, inputFilename;
+char *run(const char *data, const char *outputType, double _lambda, float _hI0,
+                int _chargePrecision, const char *_method, int _mR, int _mK,
+                double _eta, const char *ionizationDataFilename,
+                const char *chargeCentersFilename) {
+    char *output;
+    string input, type, inputFilename, outString;
     input.assign(data);
     type.assign(outputType);
+    method.assign(_method);
+
+    // Converts to lowercase
+    transform(type.begin(), type.end(), type.begin(), ::tolower);
+    transform(method.begin(), method.end(), method.begin(), ::tolower);
+
+    // Set global variables (underscore name mangling is reverse of convention :-( )
+    lambda = _lambda;
+    hI0 = _hI0;
+    chargePrecision = _chargePrecision;
+    mR = _mR;
+    mK = _mK;
+    eta = _eta;
+    if (method.compare("nonperiodic") == 0) {
+        isPeriodic = false;
+    } else {
+        useEwardSums = (method.compare("ewald") == 0);
+    }
 
     InitializeStringAtomLabelsEnumeration();  // Part of the clumsy way to enable string-based switch statements
-    LoadIonizationData("ionizationdata.dat");
-    LoadChargeCenters("chargecenters.dat");
+    LoadIonizationData(ionizationDataFilename);
+    LoadChargeCenters(chargeCentersFilename);
 
     // Quick hack. If the string ends in ".cif", it's a file. Else, it's data.
     // TODO Generalize?
@@ -274,30 +295,32 @@ const char *run(char *data, char *outputType) {
     cout << "==================================================" << endl;
 
     char buffer[50];
-    if (useEwardSums) method = "Ewald"; else method = "Direct";
-    if (!isPeriodic) method = "NonPeriodic";
-    sprintf(buffer,"_EQeq_%s_%4.2f_%4.2f",method.c_str(),lambda,hI0);
+    sprintf(buffer,"_EQeq_%s_%4.2f_%4.2f", method.c_str(), lambda, hI0);
 
     // This is the standard behavior from the command line
     if (type.compare("files") == 0) {
-    OutputCIFFormatFile(inputFilename+buffer+".cif");
-    OutputMOLFormatFile(inputFilename+buffer+".mol");
-    OutputPDBFormatFile(inputFilename+buffer+".pdb");
-    OutputCARFormatFile(inputFilename+buffer+".car");
+        OutputCIFFormatFile(inputFilename + buffer + ".cif");
+        OutputMOLFormatFile(inputFilename + buffer + ".mol");
+        OutputPDBFormatFile(inputFilename + buffer + ".pdb");
+        OutputCARFormatFile(inputFilename + buffer + ".car");
         return 0;
     // These options allow output streaming of string data
     } else if (type.compare("cif") == 0) {
-        return OutputCIFData().c_str();
+        outString = OutputCIFData();
     } else if (type.compare("pdb") == 0) {
-        return OutputPDBData().c_str();
+        outString = OutputPDBData();
     } else if (type.compare("mol") == 0) {
-        return OutputMOLData().c_str();
+        outString = OutputMOLData();
     } else if (type.compare("car") == 0) {
-        return OutputCARData().c_str();
+        outString = OutputCARData();
+    } else {
+        cout << "Output type \"" << outputType << "\" not supported!" << endl;
+        exit(1);
+        return 0;
     }
-    cout << "Output type \"" << outputType << "\" not supported!" << endl;
-    exit(1);
-    return 0;
+    output = new char[outString.length() + 1];
+    strcpy(output, outString.c_str());
+    return output;
 }
 /*****************************************************************************/
 /*****************************************************************************/
@@ -653,15 +676,15 @@ double GetJ(int i, int j) {
     }
 }
 /*****************************************************************************/
-void LoadChargeCenters(string filename) {
+void LoadChargeCenters(const char *filename) {
     // Loads charge centers to be used, atoms are assumed to be
 
-    ifstream fileInput(filename.c_str(),ios::in);
+    ifstream fileInput(filename,ios::in);
     string tmp, tStr;
     int sInd, Z;
 
     if(!fileInput) { // Error checking
-        printf("%s is not a valid filename\n\n", filename.c_str());
+        printf("%s is not a valid filename\n\n", filename);
         exit(1);
     }
 
@@ -687,16 +710,16 @@ void LoadChargeCenters(string filename) {
 
 }
 /*****************************************************************************/
-void LoadIonizationData(string filename) {
+void LoadIonizationData(const char *filename) {
     // Loads ionization data into a global vector called IonizationData
 
-    ifstream fileInput(filename.c_str(),ios::in);
+    ifstream fileInput(filename, ios::in);
     string data, tmp, cStr, tStr;
     int sInd = 0;
     int eInd = 0;
 
     if(!fileInput) { // Error checking
-        printf("%s is not a valid filename\n\n", filename.c_str());
+        printf("%s is not a valid filename\n\n", filename);
         exit(1);
     }
 

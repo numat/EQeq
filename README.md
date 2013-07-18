@@ -8,20 +8,20 @@ in the accompanying paper. The purpose of the source code provided is to be
 minimalistic and do "just the job" described. In practice, you may wish to add various
 features to the source code to fit the particular needs of your project.
 
-#####Major highlights of program:
+####Major highlights of program:
 
  * Obtains charges for atoms in periodic systems without iteration
  * Can use non-neutral charge centers for more accurate point charges
  * Designed for speed (but without significant code optimizations)
 
-#####Features not implemented but that you may want to consider adding:
+####Features not implemented but that you may want to consider adding:
 
  * Spherical cut-offs (for both real-space and reciprocal-space sums)
  * An iterative loop that guesses the appropriate charge center (so the user does not have to guess)
  * Ewald parameter auto-optimization
  * Various code optimizations
 
-#####Running the program:
+####Running the program:
 
 Program expects two input files `ionization.dat` and `chargecenters.dat`. Please
 look at source code to see what the other optional inputs are for (should be
@@ -37,34 +37,50 @@ and run with
 ./eqeq my_file.cif
 ```
 
-#####Python bindings (BETA)
+####Python bindings
 
 To facilitate automation and scaling, this version of EQeq can be operated via
-a Python function. To enable, you must build EQeq as a shared library:
+Python. To enable, you must build EQeq as a shared library:
 
 ```
-g++ -c -fPIC main.cpp -o eqeq.o
-
-# Linux
-g++ -shared -Wl,-soname,libeqeq.so -o libeqeq.so eqeq.o
-# Mac
-g++ -shared -Wl,-install_name,libeqeq.so -o libeqeq.so eqeq.o
+g++ -c -fPIC main.cpp -O3 -o eqeq.o
+g++ -shared -Wl,-soname,libeqeq.so -O3 -o libeqeq.so eqeq.o
 ```
 
-Then, you must put the `EQeq` directory on your PYTHONPATH (remember to put this
-in your ~/.bashrc to make it permanent).
+(for Macs, replace `-soname` with `-install_name`)
+
+From the command line, you can run `eqeq.py`:
 
 ```
-export PYTHONPATH:/path/to/EQeq:$PYTHONPATH
+python eqeq.py --help
+python eqeq.py IRMOF-1.cif --output-type mol --method ewald
+```
+
+This includes extensive help documentation on running EQeq, and an easy
+interface to change individual parameters.
+
+To use globally with Python scripts, you must put the `EQeq` directory on your
+PYTHONPATH:
+
+```
+export PYTHONPATH:/path/above/EQeq:$PYTHONPATH
 ```
 
 Then, you can call EQeq from Python with
 
 ```python
 import EQeq
-
 EQeq.run("IRMOF-1.cif")
 ```
 
-The input takes both filenames and actual data. The latter is useful when
-connecting EQeq with other programs (which I plan to do eventually).
+The input takes both filenames and actual data, and outputs either files or
+strings. This change allows for streaming data, which enables EQeq to be used
+as part of a broader code pipeline.
+
+```python
+import EQeq
+# Load a file. In practice, this can come from any source, such as a database
+with open("IRMOF-1.cif") as in_file:
+    data = in_file.read()
+pdb_data = EQeq.run(data, output_type="mol", method="ewald")
+```
