@@ -35,6 +35,7 @@
 
 #include <iostream>        // To read files
 #include <fstream>        // To output files
+#include <sstream>
 #include <string>
 #include <vector>
 #include <map>            // For string enumeration (C++ specific)
@@ -163,10 +164,16 @@ double GetJ(int i, int j);
 void InitializeStringAtomLabelsEnumeration();
 void LoadIonizationData(string filename);
 void LoadChargeCenters(string filename);
+void LoadCIFData(string data);
 void LoadCIFFile(string filename); // Reads in CIF files, periodicity can be switched off
+string OutputCIFData(); 
 void OutputCIFFormatFile(string filename);
+void OutputFile(string filename, string data);
+string OutputPDBData(); 
 void OutputPDBFormatFile(string filename);
+string OutputMOLData(); 
 void OutputMOLFormatFile(string filename); // Outputs 'RASPA' MOL file
+string OutputCARData(); 
 void OutputCARFormatFile(string filename);
 void Qeq();
 void RoundCharges(int digits); // Make *slight* adjustments to the charges for nice round numbers
@@ -207,14 +214,18 @@ int chargePrecision = 3; // Number of digits to use for point charges
 int mR = 2;  int mK = 2;
 int aVnum = mR; int bVnum = mR; int cVnum = mR; // Number of unit cells to consider in per. calc. ("real space")
 int hVnum = mK; int jVnum = mK; int kVnum = mK; // Number of unit cells to consider in per. calc. ("frequency space")
-/*****************************************************************************/
-/*****************************************************************************/
-int main (int argc, char *argv[]) {
-    string inputFilename,method;
 
-    // The only mandatory parameter is the input file parameter
+// Function to compile down to C. Used by the Python wrapper.
+extern "C" {
+    const char *run(char *data, char *outputType);
+}
+
+/*****************************************************************************/
+/*****************************************************************************/
+
+int main (int argc, char *argv[]) {
+    string method;
     if (argc <= 1) { cout << "Error, invalid input!" << endl; exit(1); }
-    if (argc > 1) inputFilename = argv[1];
     if (argc > 2) lambda = atof(argv[2]); // The dielectric screening parameter (optional, default value above)
     if (argc > 3) hI0 = atof(argv[3]); // The electron affinity of hydrogen (optional, default value above)
     if (argc > 4) chargePrecision = atoi(argv[4]); // Num of digits to use for charges (optional, default value above)
@@ -230,10 +241,29 @@ int main (int argc, char *argv[]) {
     if (argc > 7) mK = atoi(argv[7]);
     if (argc > 8) eta = atof(argv[8]);
 
+    // The only mandatory parameter is the input file/stream parameter
+    run(argv[1], (char *)"files");
+    return 0;
+}
+/*****************************************************************************/
+const char *run(char *data, char *outputType) {
+    string input, type, method, inputFilename;
+    input.assign(data);
+    type.assign(outputType);
+
     InitializeStringAtomLabelsEnumeration();  // Part of the clumsy way to enable string-based switch statements
     LoadIonizationData("ionizationdata.dat");
     LoadChargeCenters("chargecenters.dat");
-    LoadCIFFile(inputFilename);
+
+    // Quick hack. If the string ends in ".cif", it's a file. Else, it's data.
+    // TODO Generalize?
+    if (input.substr(input.length() - 4) == ".cif") {
+        LoadCIFFile(input);
+        inputFilename = input;
+    } else {
+        LoadCIFData(input);
+        inputFilename = "streamed";
+    }
 
     cout << "==================================================" << endl;
     cout << "===== Calculating charges... please wait. ========" << endl;
@@ -248,11 +278,25 @@ int main (int argc, char *argv[]) {
     if (!isPeriodic) method = "NonPeriodic";
     sprintf(buffer,"_EQeq_%s_%4.2f_%4.2f",method.c_str(),lambda,hI0);
 
+    // This is the standard behavior from the command line
+    if (type.compare("files") == 0) {
     OutputCIFFormatFile(inputFilename+buffer+".cif");
     OutputMOLFormatFile(inputFilename+buffer+".mol");
     OutputPDBFormatFile(inputFilename+buffer+".pdb");
     OutputCARFormatFile(inputFilename+buffer+".car");
-
+        return 0;
+    // These options allow output streaming of string data
+    } else if (type.compare("cif") == 0) {
+        return OutputCIFData().c_str();
+    } else if (type.compare("pdb") == 0) {
+        return OutputPDBData().c_str();
+    } else if (type.compare("mol") == 0) {
+        return OutputMOLData().c_str();
+    } else if (type.compare("car") == 0) {
+        return OutputCARData().c_str();
+    }
+    cout << "Output type \"" << outputType << "\" not supported!" << endl;
+    exit(1);
     return 0;
 }
 /*****************************************************************************/
@@ -264,6 +308,7 @@ Coordinates::Coordinates() {
 IonizationDatum::IonizationDatum() {
     isDataAvailable.resize(9,false);
     ionizationPotential.resize(9,0);
+    chargeCenter = 0;
 }
 /*****************************************************************************/
 void DetermineReciprocalLatticeVectors() {
@@ -625,6 +670,11 @@ void LoadChargeCenters(string filename) {
 
         // Read atom symbol
         sInd = tmp.find_first_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 0);
+
+        // Handles blank lines and such (they pop up on UNIX machines)
+        if (sInd == string::npos) {
+            continue;
+        }
         tStr = tmp.substr(sInd, 2);
         if (tStr[1] == '\t') tStr[1] = ' '; // Convert tabs to spaces
         Z = s_mapStringAtomLabels[tStr]; // Get Z number from label
@@ -725,7 +775,10 @@ void LoadCIFFile(string filename) {
         data += tmp;
         data += "\n";
     }
-
+    LoadCIFData(data);
+}
+/*****************************************************************************/
+void LoadCIFData(string data) {
     string cStr; // current string
     string tStr; // temp string
     int sInd = 0;
@@ -813,6 +866,12 @@ void LoadCIFFile(string filename) {
 
             //Read atom label
             sInd = cStr.find_first_of(" \t", 1);
+            
+            // Handles cases where EOF is hit before underscore found
+            if (sInd == string::npos) {
+                break;
+            }
+
             tStr = cStr.substr(1, sInd-1);
             //tempAtom.label = tStr;
             Label.push_back(tStr);
@@ -879,47 +938,59 @@ void LoadCIFFile(string filename) {
         eInd2 = data.find("\n", eInd2 + 1); // End of the next line
         cStr = data.substr(sInd, eInd2 - sInd); // The line
     }
-
     numAtoms = Pos.size();
-
     Q.resize(numAtoms, 0); // initialize charges to zero
 }
 /*****************************************************************************/
+void OutputFile(string filename, string data) {
+    FILE *out;
+    out = fopen(filename.c_str(), "wt");
+    fprintf(out, "%s", data.c_str());
+    fclose(out);
+}
+/*****************************************************************************/
 void OutputCIFFormatFile(string filename) {
-    FILE *out; string str = "";
-    int fileFormat = 2;
-    out = fopen(filename.c_str(),"wt");
-
-    str += "data_functionalizedCrystal"; str    += "\n";
-    str += "_audit_creation_method\t"; str += "'EQeq! by Chris Wilmer'"; str += "\n";
-    str += "_symmetry_space_group_name_H-M\t"; str += "'P1'"; str += "\n";
-    str += "_symmetry_Int_Tables_number\t"; str += "1"; str += "\n";
-    str += "_symmetry_cell_setting\t"; str += "triclinic"; str += "\n";
-    str += "loop_"; str += "\n";
-    str += "_symmetry_equiv_pos_as_xyz"; str += "\n";
-    str += "  x,y,z"; str += "\n";
-    fprintf(out,str.c_str());
-    fprintf(out,"_cell_length_a\t%f\n",aLength);
-    fprintf(out,"_cell_length_b\t%f\n",bLength);
-    fprintf(out,"_cell_length_c\t%f\n",cLength);
-    fprintf(out,"_cell_angle_alpha\t%f\n",alphaAngle*(180 / PI));
-    fprintf(out,"_cell_angle_beta\t%f\n",betaAngle*(180 / PI));
-    fprintf(out,"_cell_angle_gamma\t%f\n",gammaAngle*(180 / PI));
-    str = "";
-    str += "loop_"; str += "\n";
-    str += "_atom_site_label"; str += "\n";
-    str += "_atom_site_type_symbol"; str += "\n";
-    str += "_atom_site_fract_x"; str += "\n";
-    str += "_atom_site_fract_y"; str += "\n";
-    str += "_atom_site_fract_z"; str += "\n";
-    str += "_atom_site_charge"; str += "\n";
-    fprintf(out,str.c_str());
-
-    int k = 0;
+    OutputFile(filename, OutputCIFData());
+}
+/*****************************************************************************/
+void OutputPDBFormatFile(string filename) {
+    OutputFile(filename, OutputPDBData());
+}
+/*****************************************************************************/
+void OutputMOLFormatFile(string filename) {
+    OutputFile(filename, OutputMOLData());
+}
+/*****************************************************************************/
+void OutputCARFormatFile(string filename) {
+    OutputFile(filename, OutputCARData());
+}
+/*****************************************************************************/
+string OutputCIFData() {
+    ostringstream stringStream;
+    stringStream << "data_functionalizedCrystal" << endl;
+    stringStream << "_audit_creation_method\t" << "'EQeq! by Chris Wilmer'" << endl;
+    stringStream << "_symmetry_space_group_name_H-M\t" << "'P1'" << endl; 
+    stringStream << "_symmetry_Int_Tables_number\t" << "1" << endl; 
+    stringStream << "_symmetry_cell_setting\t" << "triclinic" << endl; 
+    stringStream << "loop_" << endl;
+    stringStream << "_symmetry_equiv_pos_as_xyz" << endl;
+    stringStream << "  x,y,z" << endl;
+    stringStream << "_cell_length_a\t" << aLength << endl;
+    stringStream << "_cell_length_b\t" << bLength << endl;
+    stringStream << "_cell_length_c\t" << cLength << endl;
+    stringStream << "_cell_angle_alpha\t" << alphaAngle * (180 / PI) << endl;
+    stringStream << "_cell_angle_beta\t" << betaAngle * (180 / PI) << endl;
+    stringStream << "_cell_angle_gamma\t" << gammaAngle * (180 / PI) << endl;
+    stringStream << "loop_" << endl;
+    stringStream << "_atom_site_label" << endl;
+    stringStream << "_atom_site_type_symbol" << endl;
+    stringStream << "_atom_site_fract_x" << endl;
+    stringStream << "_atom_site_fract_y" << endl;
+    stringStream << "_atom_site_fract_z" << endl;
+    stringStream << "_atom_site_charge" << endl;
 
     // For all atoms
     for (int i = 0; i < numAtoms ; i++) {
-        k++;
         // Determine the fractional coordinates
         double dx = Pos[i].x;
         double dy = Pos[i].y;
@@ -936,82 +1007,82 @@ void OutputCIFFormatFile(string filename) {
                    (aV[2]*bV[1]*cV[0] - aV[1]*bV[2]*cV[0] - aV[2]*bV[0]*cV[1] +
                    aV[0]*bV[2]*cV[1] + aV[1]*bV[0]*cV[2] - aV[0]*bV[1]*cV[2]);
 
-        fprintf(out,"cg");
-        fprintf(out,Symbol[i].c_str());
-        fprintf(out,"\t");
-        fprintf(out,Symbol[i].c_str());
-        fprintf(out,"\t%f\t%f\t%f\t%f\n",a,b,c,Q[i]);
+        stringStream<< "cg" << Symbol[i] << "\t" << Symbol[i] << "\t";
+        stringStream << a << "\t" << b << "\t" << c << "\t" << Q[i] << endl;
     }
 
-    fprintf(out,"_end\n");
-    fclose(out);
+    stringStream << "_end" << endl;
+    return stringStream.str();
 }
 /*****************************************************************************/
-void OutputPDBFormatFile(string filename) {
-    FILE *out;
-    out = fopen(filename.c_str(),"wt");
+string OutputPDBData() {
+    ostringstream stringStream;
+    char buf[200];
 
-    fprintf(out,"TITLE       YourMoleculeNameHere            \n");
-    fprintf(out,"REMARK   4\n");
-    fprintf(out,"REMARK   4      COMPLIES WITH FORMAT V. 2.2, 16-DEC-1996\n");
-    if (isPeriodic == true) {
-        fprintf(out,"CRYST1    %5.2f    %5.2f    %5.2f  %3.2f  %3.2f  %3.2f P1\n",
+    stringStream << "TITLE       YourMoleculeNameHere            " << endl;
+    stringStream << "REMARK   4" << endl;
+    stringStream << "REMARK   4      COMPLIES WITH FORMAT V. 2.2, 16-DEC-1996" << endl;
+    if (isPeriodic) {
+        sprintf(buf, "CRYST1    %5.2f    %5.2f    %5.2f  %3.2f  %3.2f  %3.2f P1\n",
             aLength,bLength,cLength,alphaAngle*180/PI,betaAngle*180/PI,gammaAngle*180/PI);
-    } else {
-        // Do nothing
+        stringStream << buf;
     }
     for (int i = 0; i < numAtoms; i++) {
-        fprintf(out,"ATOM    %3d %s   MOL A   0     % 7.3f % 7.3f % 7.3f % 5.2f                %s\n",
+        sprintf(buf, "ATOM    %3d %s   MOL A   0     % 7.3f % 7.3f % 7.3f % 5.2f                %s\n",
             i+1,Symbol[i].c_str(),Pos[i].x,Pos[i].y,Pos[i].z,Q[i],Symbol[i].c_str());
+        stringStream << buf;
     }
-
-    fclose(out);
+    return stringStream.str();
 }
 /*****************************************************************************/
-void OutputMOLFormatFile(string filename) {
-    FILE *out;
-    out = fopen(filename.c_str(),"wt");
+string OutputMOLData() {
+    ostringstream stringStream;
+    char buf[200];
 
-    fprintf(out," Molecule_name: hypotheticalMOF\n"); // This should be updated
-    fprintf(out,"\n");
-    fprintf(out,"  Coord_Info: Listed Cartesian None\n");
-    fprintf(out,"        %d\n",numAtoms);
+    stringStream << " Molecule_name: hypotheticalMOF" << endl << endl;
+    stringStream << "  Coord_Info: Listed Cartesian None" << endl;
+    stringStream << "        " << numAtoms << endl;
 
     for (int i = 0; i < numAtoms; i++) {
-        fprintf(out,"  %4d  % 8.4f % 8.4f % 8.4f  Mof_%s   % 6.3f  0  0\n",
-            i+1,Pos[i].x,Pos[i].y,Pos[i].z,Symbol[i].c_str(),Q[i]);
+        sprintf(buf, "  %4d  % 8.4f % 8.4f % 8.4f  Mof_%s   % 6.3f  0  0\n",
+                i + 1,Pos[i].x, Pos[i].y, Pos[i].z, Symbol[i].c_str(), Q[i]);
+        stringStream << buf;
     }
 
-    fprintf(out,"\n");
-    fprintf(out,"\n");
-    fprintf(out,"\n");
-    fprintf(out,"  Fundcell_Info: Listed\n");
-    fprintf(out,"        %8.4f      %8.4f      %8.4f\n",aLength,bLength,cLength);
-    fprintf(out,"        %8.4f      %8.4f      %8.4f\n",alphaAngle*180/PI,betaAngle*180/PI,gammaAngle*180/PI);
-    fprintf(out,"        0.00000        0.00000       0.00000\n");
-    fprintf(out,"        %8.4f      %8.4f      %8.4f\n",aLength,bLength,cLength);
+    stringStream << endl << endl << endl;
+    stringStream << "  Fundcell_Info: Listed" << endl;
+    sprintf(buf, "        %8.4f      %8.4f      %8.4f\n", aLength, bLength, cLength);
+    stringStream << buf;
+    sprintf(buf, "        %8.4f      %8.4f      %8.4f\n", alphaAngle * 180 / PI,
+            betaAngle * 180 / PI, gammaAngle * 180 / PI);
+    stringStream << buf;
+    stringStream << "        0.00000        0.00000       0.00000" << endl;
+    sprintf(buf, "        %8.4f      %8.4f      %8.4f\n", aLength, bLength, cLength);
+    stringStream << buf;
 
-    fclose(out);
+    return stringStream.str();
 }
 /*****************************************************************************/
-void OutputCARFormatFile(string filename) {
-    FILE *out;
-    out = fopen(filename.c_str(),"wt");
-
-    fprintf(out,"!BIOSYM archive 3\n");
-    fprintf(out,"PBC=ON\n");
-    fprintf(out,"Generating .CAR file\n");
-    fprintf(out,"!DATE\n");
-    fprintf(out,"PBC%10.4f%10.4f%10.4f%10.4f%10.4f%10.4f%7s\n",aLength,bLength,cLength,alphaAngle*180/PI,betaAngle*180/PI,gammaAngle*180/PI,"(P1)");
+string OutputCARData() {
+    ostringstream stringStream;
+    char buf[200];
+    
+    stringStream << "!BIOSYM archive 3" << endl;
+    stringStream << "PBC=ON" << endl;
+    stringStream << "Generating .CAR file" << endl;
+    stringStream << "!DATE" << endl;
+    sprintf(buf, "PBC%10.4f%10.4f%10.4f%10.4f%10.4f%10.4f%7s\n", aLength, bLength, cLength,
+            alphaAngle * 180 / PI, betaAngle * 180 / PI, gammaAngle * 180 / PI, "(P1)");
+    stringStream << buf;
 
     for (int i = 0; i < numAtoms; i++) {
-        fprintf(out, "%-5s %14.9f %14.9f %14.9f XXXX %-7d %-7s %2s %6.3f\n",Symbol[i].c_str(),Pos[i].x,Pos[i].y,Pos[i].z,1,"xx",Symbol[i].c_str(),Q[i]);
+        sprintf(buf, "%-5s %14.9f %14.9f %14.9f XXXX %-7d %-7s %2s %6.3f\n", Symbol[i].c_str(),
+                Pos[i].x, Pos[i].y, Pos[i].z, 1, "xx", Symbol[i].c_str(), Q[i]);
+        stringStream << buf;
     }
+    stringStream << "end" << endl << "end";
 
-    fprintf(out,"end\n");
-    fprintf(out,"end");
-
-    fclose(out);
+    return stringStream.str();
 }
 /*****************************************************************************/
 void Qeq() {
@@ -1037,7 +1108,7 @@ void Qeq() {
 
     // Fill in 2nd to Nth rows of A
     for (int i = 1; i < numAtoms; i++) {
-        cout << ".";
+        cout << "." << flush;
         for (int j = 0; j < numAtoms; j++) {
             A[i][j] = GetJ(i-1, j) - GetJ(i, j);
         }
