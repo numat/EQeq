@@ -1074,14 +1074,15 @@ string OutputChargeData() {
     ostringstream stringStream;
     char buf[200];
 
-    stringStream << "["<< endl;
+    stringStream << "{ \"charges\": ["<< endl;
 
-    for (int i = 0; i < numAtoms; i++) {
+    for (int i = 0; i < numAtoms - 1; i++) {
         sprintf(buf, "%6.3f,\n", Q[i]);
         stringStream << buf;
     }
-
-    stringStream << "]";
+    sprintf(buf, "%6.3f\n", Q[numAtoms - 1]);
+    stringStream << buf;
+    stringStream << "]}";
     return stringStream.str();
 }
 /*****************************************************************************/
