@@ -948,10 +948,6 @@ void LoadCIFData(string data) {
                 J.push_back(IonizationData[Z].ionizationPotential[cC+1] -
                     IonizationData[Z].ionizationPotential[cC]);
                 X[i] -= cC*(J[i]);
-                cout << i;
-                cout << "\n";
-                cout << X[i];
-                cout << "\n";
             }
 
             bool beenDone = false;
@@ -968,6 +964,9 @@ void LoadCIFData(string data) {
         }
         sInd = eInd2; // End of the previous line
         eInd2 = data.find("\n", eInd2 + 1); // End of the next line
+        if (eInd2 == -1) {
+            break;
+        }
         cStr = data.substr(sInd, eInd2 - sInd); // The line
     }
     numAtoms = Pos.size();
