@@ -176,6 +176,8 @@ void OutputPDBFormatFile(string filename);
 string OutputMOLData(); 
 void OutputMOLFormatFile(string filename); // Outputs 'RASPA' MOL file
 string OutputCARData(); 
+void OutputChargeListFile(string filename); // Outputs list of partial charges
+string OutputChargeData();
 void OutputCARFormatFile(string filename);
 void Qeq();
 void RoundCharges(int digits); // Make *slight* adjustments to the charges for nice round numbers
@@ -303,6 +305,7 @@ char *run(const char *data, const char *outputType, double _lambda, float _hI0,
         OutputMOLFormatFile(inputFilename + buffer + ".mol");
         OutputPDBFormatFile(inputFilename + buffer + ".pdb");
         OutputCARFormatFile(inputFilename + buffer + ".car");
+        OutputChargeListFile(inputFilename + buffer + ".json");
         return 0;
     // These options allow output streaming of string data
     } else if (type.compare("cif") == 0) {
@@ -313,6 +316,8 @@ char *run(const char *data, const char *outputType, double _lambda, float _hI0,
         outString = OutputMOLData();
     } else if (type.compare("car") == 0) {
         outString = OutputCARData();
+    } else if (type.compare("json") == 0) {
+        outString = OutputChargeData();  
     } else {
         cout << "Output type \"" << outputType << "\" not supported!" << endl;
         exit(1);
@@ -943,6 +948,10 @@ void LoadCIFData(string data) {
                 J.push_back(IonizationData[Z].ionizationPotential[cC+1] -
                     IonizationData[Z].ionizationPotential[cC]);
                 X[i] -= cC*(J[i]);
+                cout << i;
+                cout << "\n";
+                cout << X[i];
+                cout << "\n";
             }
 
             bool beenDone = false;
@@ -987,7 +996,11 @@ void OutputMOLFormatFile(string filename) {
 void OutputCARFormatFile(string filename) {
     OutputFile(filename, OutputCARData());
 }
-/*****************************************************************************/
+//*****************************************************************************/
+void OutputChargeListFile(string filename) {
+    OutputFile(filename, OutputChargeData());
+}
+//*****************************************************************************/
 string OutputCIFData() {
     ostringstream stringStream;
     stringStream << "data_functionalizedCrystal" << endl;
@@ -1055,6 +1068,21 @@ string OutputPDBData() {
             i+1,Symbol[i].c_str(),Pos[i].x,Pos[i].y,Pos[i].z,Q[i],Symbol[i].c_str());
         stringStream << buf;
     }
+    return stringStream.str();
+}
+/*****************************************************************************/
+string OutputChargeData() {
+    ostringstream stringStream;
+    char buf[200];
+
+    stringStream << "["<< endl;
+
+    for (int i = 0; i < numAtoms; i++) {
+        sprintf(buf, "%6.3f,\n", Q[i]);
+        stringStream << buf;
+    }
+
+    stringStream << "]";
     return stringStream.str();
 }
 /*****************************************************************************/

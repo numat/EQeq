@@ -50,7 +50,7 @@ def run(cif_structure, output_type="cif", l=1.2, h_i0=-2.0, charge_precision=3,
     """
     # Error handling on string params. Should spare users some annoyance.
     output_type, method = output_type.lower(), method.lower()
-    if output_type not in ["cif", "pdb", "car", "mol", "files"]:
+    if output_type not in ["cif", "pdb", "car", "mol", "json", "files"]:
         raise NotImplementedError("Output format '%s' is not supported!"
                                   % output_type)
     if method not in ["direct", "nonperiodic", "ewald"]:
