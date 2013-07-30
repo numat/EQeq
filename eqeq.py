@@ -7,6 +7,12 @@ This is intended 1. to allow users to automate + simplify their workflows and
 from ctypes import cdll, c_char_p, c_int, c_double, c_float
 import json
 import os
+import sys
+
+try:
+    from mofgen import format_converter
+except:
+    sys.stderr.write("Mofgen not found. JSON format conversion unsupported.\n")
 
 eqeq = cdll.LoadLibrary("/usr/lib/libeqeq.so")
 eqeq.run.argtypes = (c_char_p, c_char_p, c_double, c_float, c_int, c_char_p,
@@ -18,18 +24,21 @@ DEFAULT_IONIZATION_PATH = os.path.join(ROOT, "ionizationdata.dat")
 DEFAULT_CHARGE_PATH = os.path.join(ROOT, "chargecenters.dat")
 
 
-def run(cif_structure, output_type="cif", l=1.2, h_i0=-2.0, charge_precision=3,
-        method="direct", m_r=2, m_k=2, eta=50.0,
+def run(structure, input_type="cif", output_type="cif", l=1.2, h_i0=-2.0,
+        charge_precision=3, method="direct", m_r=2, m_k=2, eta=50.0,
         ionization_data_path=DEFAULT_IONIZATION_PATH,
         charge_data_path=DEFAULT_CHARGE_PATH):
     """Runs EQeq on the inputted structure, returning charge data.
 
     Args:
-        cif_structure: Either a filename or data encoding a CIF file.
+        structure: Either a filename or data encoding a chemical.
+        input_type: (Optional) Specifies input type. Options are "cif" and
+            "json", where the latter can also take Python objects.
         output_type: (Optional) Specifies the output type. Currently, options
-            are "cif", "mol", "pdb", "car", "list", and "files". The first
-            four return chemical data formats, "list" returns a Python list of
-            charges, and "files" saves files of all possible output types.
+            are "cif", "mol", "pdb", "car", "json", "object", and "files". The
+            first four return chemical data formats, "object" returns a Python
+            object, "json" is that object serialized, and "files" saves files
+            of all possible output types.
         l: (Optional) Lambda, the dielectric screening parameter.
         h_i0: (Optional) The electron affinity of hydrogen.
         charge_precision: (Optional) Number of decimals to use for charges.
@@ -51,18 +60,26 @@ def run(cif_structure, output_type="cif", l=1.2, h_i0=-2.0, charge_precision=3,
         output type is set to "files"
     """
     # Error handling on string params. Should spare users some annoyance.
-    output_type, method = output_type.lower(), method.lower()
-    if output_type not in ["cif", "pdb", "car", "mol", "list", "files"]:
-        raise NotImplementedError("Output format '%s' is not supported!"
-                                  % output_type)
-    if method not in ["direct", "nonperiodic", "ewald"]:
-        raise NotImplementedError("Method '%s' is not supported!" % method)
-
-    result = eqeq.run(cif_structure, output_type, l, h_i0, charge_precision,
+    i, o, m = input_type.lower(), output_type.lower(), method.lower()
+    if i not in ["cif", "json"]:
+        raise NotImplementedError("Input format '%s' is not supported!" % i)
+    if o not in ["cif", "pdb", "car", "mol", "json", "object", "files"]:
+        raise NotImplementedError("Output format '%s' is not supported!" % o)
+    if m not in ["direct", "nonperiodic", "ewald"]:
+        raise NotImplementedError("Method '%s' is not supported!" % m)
+    # If linked to mofgen, use it to handle json interconversion externally
+    if input_type == "json":
+        structure = format_converter.convert(structure, "json", "cif")
+    # Calls libeqeq.so's run method, returning a string of data
+    result = eqeq.run(structure, output_type, l, h_i0, charge_precision,
                       method, m_r, m_k, eta, ionization_data_path,
                       charge_data_path)
-    if output_type == "list":
-        result = json.loads(result)
+    # This option appends atoms in json/object data with a "charge" attribute
+    if output_type in ["json", "object"]:
+        obj = format_converter.convert(structure, "cif", "object")
+        for atom, charge in zip(obj["atoms"], json.loads(result)):
+            atom["charge"] = charge
+        result = obj if output_type == "object" else json.dumps(obj)
     return result
 
 
@@ -73,10 +90,13 @@ if __name__ == "__main__":
                                      "for crystal structures.")
     parser.add_argument("input", type=str, help="An input cif file. Can be "
                         "either a filepath or the input data itself")
+    parser.add_argument("--input-type", type=str, default="cif",
+                        help="Specifies input type. Options are 'cif' and"
+                        "'json'")
     parser.add_argument("--output-type", type=str, default="files",
                         help="Specifies the output type. Currently, options "
-                        "are 'cif', 'mol', 'pdb', 'car', and 'files'. The "
-                        "latter saves files of all possible output types")
+                        "are 'cif', 'mol', 'pdb', 'car', 'json', and 'files'. "
+                        "The latter saves files of all possible output types")
     parser.add_argument("--l", type=float, default=1.2,
                         help="Lambda, the dielectric screening parameter")
     parser.add_argument("--hi0", type=float, default=-2.0,

@@ -218,7 +218,7 @@ char *run(const char *data, const char *outputType, double _lambda, float _hI0,
         outString = OutputMOLData();
     } else if (type.compare("car") == 0) {
         outString = OutputCARData();
-    } else if (type.compare("list") == 0) {
+    } else if (type.compare("json") == 0 || type.compare("object") == 0) {
         outString = OutputChargeData();
     } else {
         cerr << "Output type \"" << outputType << "\" not supported!" << endl;
