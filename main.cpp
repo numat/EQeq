@@ -1,47 +1,21 @@
-// The EQeq Method v. 1.0 //////////////////////////////////////////////////////////////////////////////////////////////
-// Author: Christopher E. Wilmer & Randall Q. Snurr (advisor)                             //////////////////////////////
-// Date: Mar. 19, 2012                                                                    //////////////////////////////
-// First published in paper "An Extended Charge Equilibration Method"                     //////////////////////////////
-// If you have questions, please e-mail c.wilmer@gmail.com OR snurr@northwestern.edu      //////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Running the program:                                                                   //////////////////////////////
-// Program expects two input files "ionization.dat" and "chargecenters.dat" as well as    //////////////////////////////
-// a CIF file for an input structure. To run the program, pass the input CIF file path    //////////////////////////////
-// as the first argument to the executable (i.e: \EQeq_v1_00.exe MyDirectory/myfile.cif ) //////////////////////////////
-// Additional input parameters are optional. Please look at source code below to see      //////////////////////////////
-// what the other optional inputs are for (should be mostly self-explanatory).            //////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// The source code in this program demonstrates the charge equilibration method described //////////////////////////////
-// in the accompanying paper. The purpose of the source code provided is to be            //////////////////////////////
-// minimalistic and do "just the job" described. In practice, you may wish to add various //////////////////////////////
-// features to the source code to fit the particular needs of your project.               //////////////////////////////
-//                                                                                        //////////////////////////////
-// Major highlights of program:                                                           //////////////////////////////
-//      - Obtains charges for atoms in periodic systems without iteration                 //////////////////////////////
-//      - Can use non-neutral charge centers for more accurate point charges              //////////////////////////////
-//      - Designed for speed (but without significant code optimizations)                 //////////////////////////////
-//                                                                                        //////////////////////////////
-// Features not implemented but that you may want to consider adding:                     //////////////////////////////
-//      - Spherical cut-offs (for both real-space and reciprocal-space sums)              //////////////////////////////
-//      - An iterative loop that guesses the appropriate charge center (so the user does  //////////////////////////////
-//                                                                      not have to guess)//////////////////////////////
-//      - Ewald parameter auto-optimization                                               //////////////////////////////
-//         - Various code optimizations                                                      //////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * The EQeq Method
+ * Authors: Christopher E. Wilmer
+ *          Randall Q. Snurr (advisor)
+ *          Hansung Kim (car output)
+ *          Patrick Fuller (streaming functionality)
+ *          Louis Knapp (json output)
+ */
 
 #include <iostream>        // To read files
-#include <fstream>        // To output files
+#include <fstream>         // To output files
 #include <sstream>
 #include <cstring>
 #include <string>
 #include <algorithm>
 #include <vector>
-#include <map>            // For string enumeration (C++ specific)
-#include <cmath>        // For basic math functions
+#include <map>             // For string enumeration (C++ specific)
+#include <cmath>           // For basic math functions
 #include <cstdlib>
 using namespace std;
 
@@ -50,90 +24,15 @@ using namespace std;
 
 // This is a clumsy way to enable switch statements with atom labels in C++
 enum StringAtomLabels {
-    ev_H,
-    ev_He,
-    ev_Li,
-    ev_Be,
-    ev_B,
-    ev_C,
-    ev_N,
-    ev_O,
-    ev_F,
-    ev_Ne,
-    ev_Na,
-    ev_Mg,
-    ev_Al,
-    ev_Si,
-    ev_P,
-    ev_S,
-    ev_Cl,
-    ev_Ar,
-    ev_K ,
-    ev_Ca,
-    ev_Sc,
-    ev_Ti,
-    ev_V ,
-    ev_Cr,
-    ev_Mn,
-    ev_Fe,
-    ev_Co,
-    ev_Ni,
-    ev_Cu,
-    ev_Zn,
-    ev_Ga,
-    ev_Ge,
-    ev_As,
-    ev_Se,
-    ev_Br,
-    ev_Kr,
-    ev_Rb,
-    ev_Sr,
-    ev_Y ,
-    ev_Zr,
-    ev_Nb,
-    ev_Mo,
-    ev_Tc,
-    ev_Ru,
-    ev_Rh,
-    ev_Pd,
-    ev_Ag,
-    ev_Cd,
-    ev_In,
-    ev_Sn,
-    ev_Sb,
-    ev_Te,
-    ev_I ,
-    ev_Xe,
-    ev_Cs,
-    ev_Ba,
-    ev_La,
-    ev_Ce,
-    ev_Pr,
-    ev_Nd,
-    ev_Pm,
-    ev_Sm,
-    ev_Eu,
-    ev_Gd,
-    ev_Tb,
-    ev_Dy,
-    ev_Ho,
-    ev_Er,
-    ev_Tm,
-    ev_Yb,
-    ev_Lu,
-    ev_Hf,
-    ev_Ta,
-    ev_W ,
-    ev_Re,
-    ev_Os,
-    ev_Ir,
-    ev_Pt,
-    ev_Au,
-    ev_Hg,
-    ev_Tl,
-    ev_Pb,
-    ev_Bi,
-    ev_Po
+    ev_H, ev_He, ev_Li, ev_Be, ev_B, ev_C, ev_N, ev_O, ev_F, ev_Ne, ev_Na,
+    ev_Mg, ev_Al, ev_Si, ev_P, ev_S, ev_Cl, ev_Ar, ev_K, ev_Ca, ev_Sc, ev_Ti,
+    ev_V , ev_Cr, ev_Mn, ev_Fe, ev_Co, ev_Ni, ev_Cu, ev_Zn, ev_Ga, ev_Ge,
+    ev_As, ev_Se, ev_Br, ev_Kr, ev_Rb, ev_Sr, ev_Y , ev_Zr, ev_Nb, ev_Mo,
+    ev_Tc, ev_Ru, ev_Rh, ev_Pd, ev_Ag, ev_Cd, ev_In, ev_Sn, ev_Sb, ev_Te,
+    ev_I, ev_Xe, ev_Cs, ev_Ba, ev_La, ev_Ce, ev_Pr, ev_Nd, ev_Pm, ev_Sm,
+    ev_Eu, ev_Gd, ev_Tb, ev_Dy, ev_Ho, ev_Er, ev_Tm, ev_Yb, ev_Lu, ev_Hf,
+    ev_Ta, ev_W , ev_Re, ev_Os, ev_Ir, ev_Pt, ev_Au, ev_Hg, ev_Tl, ev_Pb,
+    ev_Bi, ev_Po
 };
 
 // Map to associate the strings with the enum values
@@ -278,8 +177,11 @@ char *run(const char *data, const char *outputType, double _lambda, float _hI0,
     LoadIonizationData(ionizationDataFilename);
     LoadChargeCenters(chargeCentersFilename);
 
+    // EQeq uses globals. The one below was causing errors when EQeq was run
+    // more than once. This is a quick fix. Longer term, remove globals.
+    Pos.clear();
+
     // Quick hack. If the string ends in ".cif", it's a file. Else, it's data.
-    // TODO Generalize?
     if (input.substr(input.length() - 4) == ".cif") {
         LoadCIFFile(input);
         inputFilename = input;
@@ -883,7 +785,6 @@ void LoadCIFData(string data) {
     cout << "========= Atom types - X & J values used =========" << endl;
     cout << "==================================================" << endl;
 
-    // Read in atom positions, symbols, and names
     Coordinates tempAtom;
     while (underscoreFound == false) {
         if ((cStr.find("_",0) >=0) && (cStr.find("_",0) < cStr.size())) {
@@ -995,11 +896,11 @@ void OutputMOLFormatFile(string filename) {
 void OutputCARFormatFile(string filename) {
     OutputFile(filename, OutputCARData());
 }
-//*****************************************************************************/
+/*****************************************************************************/
 void OutputChargeListFile(string filename) {
     OutputFile(filename, OutputChargeData());
 }
-//*****************************************************************************/
+/*****************************************************************************/
 string OutputCIFData() {
     ostringstream stringStream;
     stringStream << "data_functionalizedCrystal" << endl;
@@ -1072,17 +973,11 @@ string OutputPDBData() {
 /*****************************************************************************/
 string OutputChargeData() {
     ostringstream stringStream;
-    char buf[200];
-
-    stringStream << "{ \"charges\": ["<< endl;
-
+    stringStream << "[";
     for (int i = 0; i < numAtoms - 1; i++) {
-        sprintf(buf, "%6.3f,\n", Q[i]);
-        stringStream << buf;
+        stringStream << Q[i] << ",";
     }
-    sprintf(buf, "%6.3f\n", Q[numAtoms - 1]);
-    stringStream << buf;
-    stringStream << "]}";
+    stringStream << Q[numAtoms - 1] << "]";
     return stringStream.str();
 }
 /*****************************************************************************/
