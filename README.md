@@ -45,9 +45,12 @@ Python. To enable, you must build EQeq as a shared library:
 ```
 g++ -c -fPIC main.cpp -O3 -o eqeq.o
 g++ -shared -Wl,-soname,libeqeq.so -O3 -o libeqeq.so eqeq.o
+sudo cp libeqeq.so /usr/lib
 ```
 
 (for Macs, replace `-soname` with `-install_name`)
+(if you don't have sudo access, `mkdir ~/lib; cp libeqeq.so ~/lib`, then change
+the path at the top of `eqeq.py`)
 
 From the command line, you can run `eqeq.py`:
 
@@ -82,5 +85,5 @@ import EQeq
 # Load a file. In practice, this can come from any source, such as a database
 with open("IRMOF-1.cif") as in_file:
     data = in_file.read()
-pdb_data = EQeq.run(data, output_type="mol", method="ewald")
+charges = EQeq.run(data, output_type="list", method="ewald")
 ```

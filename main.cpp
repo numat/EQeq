@@ -67,14 +67,14 @@ void LoadIonizationData(const char *filename);
 void LoadChargeCenters(const char *filename);
 void LoadCIFData(string data);
 void LoadCIFFile(string filename); // Reads in CIF files, periodicity can be switched off
-string OutputCIFData(); 
+string OutputCIFData();
 void OutputCIFFormatFile(string filename);
 void OutputFile(string filename, string data);
-string OutputPDBData(); 
+string OutputPDBData();
 void OutputPDBFormatFile(string filename);
-string OutputMOLData(); 
+string OutputMOLData();
 void OutputMOLFormatFile(string filename); // Outputs 'RASPA' MOL file
-string OutputCARData(); 
+string OutputCARData();
 void OutputChargeListFile(string filename); // Outputs list of partial charges
 string OutputChargeData();
 void OutputCARFormatFile(string filename);
@@ -218,8 +218,8 @@ char *run(const char *data, const char *outputType, double _lambda, float _hI0,
         outString = OutputMOLData();
     } else if (type.compare("car") == 0) {
         outString = OutputCARData();
-    } else if (type.compare("json") == 0) {
-        outString = OutputChargeData();  
+    } else if (type.compare("list") == 0) {
+        outString = OutputChargeData();
     } else {
         cout << "Output type \"" << outputType << "\" not supported!" << endl;
         exit(1);
@@ -795,7 +795,7 @@ void LoadCIFData(string data) {
 
             //Read atom label
             sInd = cStr.find_first_of(" \t", 1);
-            
+
             // Handles cases where EOF is hit before underscore found
             if (sInd == string::npos) {
                 break;
@@ -844,7 +844,7 @@ void LoadCIFData(string data) {
                 J.push_back(hI1 - hI0);
             } else {
                 int cC = IonizationData[Z].chargeCenter;
-                X.push_back(0.5*(IonizationData[Z].ionizationPotential[cC+1] +
+                X.push_back(0.5*(IonizationData[Z].ionizationPotential[cC+1]
                     IonizationData[Z].ionizationPotential[cC]));
                 J.push_back(IonizationData[Z].ionizationPotential[cC+1] -
                     IonizationData[Z].ionizationPotential[cC]);
@@ -934,13 +934,13 @@ string OutputCIFData() {
 
         // Convert to fractional coordinates (below is the "inverse transform matrix")
         double a = (bV[2]*cV[1]*dx - bV[1]*cV[2]*dx - bV[2]*cV[0]*dy + bV[0]*cV[2]*dy + bV[1]*cV[0]*dz - bV[0]*cV[1]*dz)/
-                   (aV[2]*bV[1]*cV[0] - aV[1]*bV[2]*cV[0] - aV[2]*bV[0]*cV[1] +
+                   (aV[2]*bV[1]*cV[0] - aV[1]*bV[2]*cV[0] - aV[2]*bV[0]*cV[1]
                     aV[0]*bV[2]*cV[1] + aV[1]*bV[0]*cV[2] - aV[0]*bV[1]*cV[2]);
         double b = (aV[2]*cV[1]*dx - aV[1]*cV[2]*dx - aV[2]*cV[0]*dy + aV[0]*cV[2]*dy + aV[1]*cV[0]*dz - aV[0]*cV[1]*dz)/
                    (-(aV[2]*bV[1]*cV[0]) + aV[1]*bV[2]*cV[0] + aV[2]*bV[0]*cV[1] -
                    aV[0]*bV[2]*cV[1] - aV[1]*bV[0]*cV[2] + aV[0]*bV[1]*cV[2]);
         double c = (aV[2]*bV[1]*dx - aV[1]*bV[2]*dx - aV[2]*bV[0]*dy + aV[0]*bV[2]*dy + aV[1]*bV[0]*dz - aV[0]*bV[1]*dz)/
-                   (aV[2]*bV[1]*cV[0] - aV[1]*bV[2]*cV[0] - aV[2]*bV[0]*cV[1] +
+                   (aV[2]*bV[1]*cV[0] - aV[1]*bV[2]*cV[0] - aV[2]*bV[0]*cV[1]
                    aV[0]*bV[2]*cV[1] + aV[1]*bV[0]*cV[2] - aV[0]*bV[1]*cV[2]);
 
         stringStream<< "cg" << Symbol[i] << "\t" << Symbol[i] << "\t";

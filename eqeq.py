@@ -5,29 +5,26 @@ This is intended 1. to allow users to automate + simplify their workflows and
 2. to enable scaling of simulations to millions of structures.
 """
 from ctypes import cdll, c_char_p, c_int, c_double, c_float
-import os
+import json
 
-ROOT = os.path.normpath(os.path.dirname(__file__))
-eqeq = cdll.LoadLibrary(os.path.join(ROOT, "libeqeq.so"))
+eqeq = cdll.LoadLibrary("/usr/lib/libeqeq.so")
 eqeq.run.argtypes = (c_char_p, c_char_p, c_double, c_float, c_int, c_char_p,
                      c_int, c_int, c_double, c_char_p, c_char_p)
 eqeq.run.restype = c_char_p
 
-DEFAULT_IONIZATION_PATH = os.path.join(ROOT, "ionizationdata.dat")
-DEFAULT_CHARGE_PATH = os.path.join(ROOT, "chargecenters.dat")
-
 
 def run(cif_structure, output_type="cif", l=1.2, h_i0=-2.0, charge_precision=3,
         method="direct", m_r=2, m_k=2, eta=50.0,
-        ionization_data_path=DEFAULT_IONIZATION_PATH,
-        charge_data_path=DEFAULT_CHARGE_PATH):
+        ionization_data_path="ionizationdata.dat",
+        charge_data_path="chargecenters.dat"):
     """Runs EQeq on the inputted structure, returning charge data.
 
     Args:
         cif_structure: Either a filename or data encoding a CIF file.
         output_type: (Optional) Specifies the output type. Currently, options
-            are "cif", "mol", "pdb", "car", and "files". The latter saves files
-            of all possible output types.
+            are "cif", "mol", "pdb", "car", "list", and "files". The first
+            four return chemical data formats, "list" returns a Python list of
+            charges, and "files" saves files of all possible output types.
         l: (Optional) Lambda, the dielectric screening parameter.
         h_i0: (Optional) The electron affinity of hydrogen.
         charge_precision: (Optional) Number of decimals to use for charges.
@@ -50,15 +47,18 @@ def run(cif_structure, output_type="cif", l=1.2, h_i0=-2.0, charge_precision=3,
     """
     # Error handling on string params. Should spare users some annoyance.
     output_type, method = output_type.lower(), method.lower()
-    if output_type not in ["cif", "pdb", "car", "mol", "json", "files"]:
+    if output_type not in ["cif", "pdb", "car", "mol", "list", "files"]:
         raise NotImplementedError("Output format '%s' is not supported!"
                                   % output_type)
     if method not in ["direct", "nonperiodic", "ewald"]:
         raise NotImplementedError("Method '%s' is not supported!" % method)
 
-    return eqeq.run(cif_structure, output_type, l, h_i0, charge_precision,
-                    method, m_r, m_k, eta, ionization_data_path,
-                    charge_data_path)
+    result = eqeq.run(cif_structure, output_type, l, h_i0, charge_precision,
+                      method, m_r, m_k, eta, ionization_data_path,
+                      charge_data_path)
+    if output_type == "list":
+        result = json.loads(result)
+    return result
 
 
 if __name__ == "__main__":
@@ -90,12 +90,12 @@ if __name__ == "__main__":
     parser.add_argument("--eta", type=float, default=50.0,
                         help="Ewald splitting parameter")
     parser.add_argument("--ionization-data-path", type=str,
-                        default=DEFAULT_IONIZATION_PATH, help="A path to the "
+                        default="ionizationdata.dat", help="A path to the "
                         "file containing ionization data. By default, assumes "
                         "the data is in the EQeq folder and saved as "
                         "'ionizationdata.dat'")
     parser.add_argument("--charge-data-path", type=str,
-                        default=DEFAULT_CHARGE_PATH, help="A path to the file "
+                        default="chargecenters.dat", help="A path to the file "
                         "containing charge-center data. By default, assumes "
                         "the data is in the EQeq folder and saved as "
                         "'chargecenters.dat'")
