@@ -6,17 +6,22 @@ This is intended 1. to allow users to automate + simplify their workflows and
 """
 from ctypes import cdll, c_char_p, c_int, c_double, c_float
 import json
+import os
 
 eqeq = cdll.LoadLibrary("/usr/lib/libeqeq.so")
 eqeq.run.argtypes = (c_char_p, c_char_p, c_double, c_float, c_int, c_char_p,
                      c_int, c_int, c_double, c_char_p, c_char_p)
 eqeq.run.restype = c_char_p
 
+ROOT = os.path.normpath(os.path.dirname(__file__))
+DEFAULT_IONIZATION_PATH = os.path.join(ROOT, "ionizationdata.dat")
+DEFAULT_CHARGE_PATH = os.path.join(ROOT, "chargecenters.dat")
+
 
 def run(cif_structure, output_type="cif", l=1.2, h_i0=-2.0, charge_precision=3,
         method="direct", m_r=2, m_k=2, eta=50.0,
-        ionization_data_path="ionizationdata.dat",
-        charge_data_path="chargecenters.dat"):
+        ionization_data_path=DEFAULT_IONIZATION_PATH,
+        charge_data_path=DEFAULT_CHARGE_PATH):
     """Runs EQeq on the inputted structure, returning charge data.
 
     Args:
@@ -90,12 +95,12 @@ if __name__ == "__main__":
     parser.add_argument("--eta", type=float, default=50.0,
                         help="Ewald splitting parameter")
     parser.add_argument("--ionization-data-path", type=str,
-                        default="ionizationdata.dat", help="A path to the "
+                        default=DEFAULT_IONIZATION_PATH, help="A path to the "
                         "file containing ionization data. By default, assumes "
                         "the data is in the EQeq folder and saved as "
                         "'ionizationdata.dat'")
     parser.add_argument("--charge-data-path", type=str,
-                        default="chargecenters.dat", help="A path to the file "
+                        default=DEFAULT_CHARGE_PATH, help="A path to the file "
                         "containing charge-center data. By default, assumes "
                         "the data is in the EQeq folder and saved as "
                         "'chargecenters.dat'")

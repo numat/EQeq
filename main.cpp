@@ -131,7 +131,7 @@ char *run(const char *data, const char *outputType, double _lambda, float _hI0,
 /*****************************************************************************/
 
 int main (int argc, char *argv[]) {
-    if (argc <= 1) { cout << "Error, invalid input!" << endl; exit(1); }
+    if (argc <= 1) { cerr << "Error, invalid input!" << endl; exit(1); }
     if (argc > 2) lambda = atof(argv[2]); // The dielectric screening parameter (optional, default value above)
     if (argc > 3) hI0 = atof(argv[3]); // The electron affinity of hydrogen (optional, default value above)
     if (argc > 4) chargePrecision = atoi(argv[4]); // Num of digits to use for charges (optional, default value above)
@@ -190,13 +190,13 @@ char *run(const char *data, const char *outputType, double _lambda, float _hI0,
         inputFilename = "streamed";
     }
 
-    cout << "==================================================" << endl;
-    cout << "===== Calculating charges... please wait. ========" << endl;
+    cerr << "==================================================" << endl;
+    cerr << "===== Calculating charges... please wait. ========" << endl;
     Qtot = 0; // Can be non-zero for non-periodic structures
     Qeq();
     RoundCharges(chargePrecision);
-    cout << "===== ... done!                           ========" << endl;
-    cout << "==================================================" << endl;
+    cerr << "===== ... done!                           ========" << endl;
+    cerr << "==================================================" << endl;
 
     char buffer[50];
     sprintf(buffer,"_EQeq_%s_%4.2f_%4.2f", method.c_str(), lambda, hI0);
@@ -221,7 +221,7 @@ char *run(const char *data, const char *outputType, double _lambda, float _hI0,
     } else if (type.compare("list") == 0) {
         outString = OutputChargeData();
     } else {
-        cout << "Output type \"" << outputType << "\" not supported!" << endl;
+        cerr << "Output type \"" << outputType << "\" not supported!" << endl;
         exit(1);
         return 0;
     }
@@ -578,7 +578,7 @@ double GetJ(int i, int j) {
             }
         }
     } else {
-        cout << "Serious error specifying periodic boundary conditions. Exiting" << endl;
+        cerr << "Serious error specifying periodic boundary conditions. Exiting" << endl;
         exit(1);
     }
 }
@@ -781,9 +781,9 @@ void LoadCIFData(string data) {
         }
     }
 
-    cout << "==================================================" << endl;
-    cout << "========= Atom types - X & J values used =========" << endl;
-    cout << "==================================================" << endl;
+    cerr << "==================================================" << endl;
+    cerr << "========= Atom types - X & J values used =========" << endl;
+    cerr << "==================================================" << endl;
 
     Coordinates tempAtom;
     while (underscoreFound == false) {
@@ -844,7 +844,7 @@ void LoadCIFData(string data) {
                 J.push_back(hI1 - hI0);
             } else {
                 int cC = IonizationData[Z].chargeCenter;
-                X.push_back(0.5*(IonizationData[Z].ionizationPotential[cC+1]
+                X.push_back(0.5*(IonizationData[Z].ionizationPotential[cC+1] +
                     IonizationData[Z].ionizationPotential[cC]));
                 J.push_back(IonizationData[Z].ionizationPotential[cC+1] -
                     IonizationData[Z].ionizationPotential[cC]);
@@ -856,11 +856,11 @@ void LoadCIFData(string data) {
                 if (Symbol[i] == Symbol[j]) beenDone = true;
             }
             if (beenDone == false) {
-                cout << Symbol[i] << "\t";
-                cout << "Z: " << Z+1 << "\t";
-                cout << "Ch. Cent: " << IonizationData[Z].chargeCenter << "\t";
-                cout << "X: " << X[i] << "\t";
-                cout << "J: " << J[i] << "\t" << endl;
+                cerr << Symbol[i] << "\t";
+                cerr << "Z: " << Z+1 << "\t";
+                cerr << "Ch. Cent: " << IonizationData[Z].chargeCenter << "\t";
+                cerr << "X: " << X[i] << "\t";
+                cerr << "J: " << J[i] << "\t" << endl;
             }
         }
         sInd = eInd2; // End of the previous line
@@ -905,9 +905,9 @@ string OutputCIFData() {
     ostringstream stringStream;
     stringStream << "data_functionalizedCrystal" << endl;
     stringStream << "_audit_creation_method\t" << "'EQeq! by Chris Wilmer'" << endl;
-    stringStream << "_symmetry_space_group_name_H-M\t" << "'P1'" << endl; 
-    stringStream << "_symmetry_Int_Tables_number\t" << "1" << endl; 
-    stringStream << "_symmetry_cell_setting\t" << "triclinic" << endl; 
+    stringStream << "_symmetry_space_group_name_H-M\t" << "'P1'" << endl;
+    stringStream << "_symmetry_Int_Tables_number\t" << "1" << endl;
+    stringStream << "_symmetry_cell_setting\t" << "triclinic" << endl;
     stringStream << "loop_" << endl;
     stringStream << "_symmetry_equiv_pos_as_xyz" << endl;
     stringStream << "  x,y,z" << endl;
@@ -934,13 +934,13 @@ string OutputCIFData() {
 
         // Convert to fractional coordinates (below is the "inverse transform matrix")
         double a = (bV[2]*cV[1]*dx - bV[1]*cV[2]*dx - bV[2]*cV[0]*dy + bV[0]*cV[2]*dy + bV[1]*cV[0]*dz - bV[0]*cV[1]*dz)/
-                   (aV[2]*bV[1]*cV[0] - aV[1]*bV[2]*cV[0] - aV[2]*bV[0]*cV[1]
+                   (aV[2]*bV[1]*cV[0] - aV[1]*bV[2]*cV[0] - aV[2]*bV[0]*cV[1] +
                     aV[0]*bV[2]*cV[1] + aV[1]*bV[0]*cV[2] - aV[0]*bV[1]*cV[2]);
         double b = (aV[2]*cV[1]*dx - aV[1]*cV[2]*dx - aV[2]*cV[0]*dy + aV[0]*cV[2]*dy + aV[1]*cV[0]*dz - aV[0]*cV[1]*dz)/
                    (-(aV[2]*bV[1]*cV[0]) + aV[1]*bV[2]*cV[0] + aV[2]*bV[0]*cV[1] -
                    aV[0]*bV[2]*cV[1] - aV[1]*bV[0]*cV[2] + aV[0]*bV[1]*cV[2]);
         double c = (aV[2]*bV[1]*dx - aV[1]*bV[2]*dx - aV[2]*bV[0]*dy + aV[0]*bV[2]*dy + aV[1]*bV[0]*dz - aV[0]*bV[1]*dz)/
-                   (aV[2]*bV[1]*cV[0] - aV[1]*bV[2]*cV[0] - aV[2]*bV[0]*cV[1]
+                   (aV[2]*bV[1]*cV[0] - aV[1]*bV[2]*cV[0] - aV[2]*bV[0]*cV[1] +
                    aV[0]*bV[2]*cV[1] + aV[1]*bV[0]*cV[2] - aV[0]*bV[1]*cV[2]);
 
         stringStream<< "cg" << Symbol[i] << "\t" << Symbol[i] << "\t";
@@ -1054,7 +1054,7 @@ void Qeq() {
 
     // Fill in 2nd to Nth rows of A
     for (int i = 1; i < numAtoms; i++) {
-        cout << "." << flush;
+        cerr << "." << flush;
         for (int j = 0; j < numAtoms; j++) {
             A[i][j] = GetJ(i-1, j) - GetJ(i, j);
         }
@@ -1077,7 +1077,7 @@ void RoundCharges(int digits) {
         // do nothing
     } else { // There is a small excess charge from rounding, adjust it
         int numAtomsToAdjust = (int)(abs(qsum * factor) + 0.5); // Weird double-to-int conversion tricks
-        cout << " adjusting the charge of " << numAtomsToAdjust << " atoms!" << endl;
+        cerr << " adjusting the charge of " << numAtomsToAdjust << " atoms!" << endl;
 
         int sign; if (qsum > 0) sign = -1; else sign = 1;
         for (int i=0; i < numAtomsToAdjust; i++) { // Adjust
@@ -1143,7 +1143,7 @@ vector<double> SolveMatrix(vector<vector<double> > A, vector<double> b) {
         }
 
         if (r == 0) {
-          cout << "Error! Matrix is rank deficient." << endl;
+          cerr << "Error! Matrix is rank deficient." << endl;
           // return -1;
         }
 
@@ -1177,7 +1177,7 @@ vector<double> SolveMatrix(vector<vector<double> > A, vector<double> b) {
         }
 
         if (fabs(alef) < 0.00001) {
-          cout << "Apparent singularity in matrix." << endl;
+          cerr << "Apparent singularity in matrix." << endl;
           // return -1;
         }
 
