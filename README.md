@@ -85,5 +85,5 @@ import EQeq
 # Load a file. In practice, this can come from any source, such as a database
 with open("IRMOF-1.cif") as in_file:
     data = in_file.read()
-charges = EQeq.run(data, output_type="list", method="ewald")
+charges = EQeq.run(data, output_type="object", method="ewald")
 ```

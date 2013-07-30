@@ -10,9 +10,11 @@ import os
 import sys
 
 try:
-    from mofgen import format_converter
+    import format_converter
 except:
-    sys.stderr.write("Mofgen not found. JSON format conversion unsupported.\n")
+    sys.stderr.write("Openbabel not found. Format conversion unsupported.\n"
+                     "Only use cif files for output, and cif/mol/pdb/car/files"
+                     " for output.")
 
 eqeq = cdll.LoadLibrary("/usr/lib/libeqeq.so")
 eqeq.run.argtypes = (c_char_p, c_char_p, c_double, c_float, c_int, c_char_p,
@@ -32,13 +34,13 @@ def run(structure, input_type="cif", output_type="cif", l=1.2, h_i0=-2.0,
 
     Args:
         structure: Either a filename or data encoding a chemical.
-        input_type: (Optional) Specifies input type. Options are "cif" and
-            "json", where the latter can also take Python objects.
+        input_type: (Optional) Specifies input type. Can be anything supported
+            by openbabel, as well as "json"
         output_type: (Optional) Specifies the output type. Currently, options
             are "cif", "mol", "pdb", "car", "json", "object", and "files". The
-            first four return chemical data formats, "object" returns a Python
-            object, "json" is that object serialized, and "files" saves files
-            of all possible output types.
+            first four return modified chemical data formats, "object" returns
+            a Python object, "json" is that object serialized, and "files"
+            saves files of all possible output types.
         l: (Optional) Lambda, the dielectric screening parameter.
         h_i0: (Optional) The electron affinity of hydrogen.
         charge_precision: (Optional) Number of decimals to use for charges.
@@ -60,16 +62,14 @@ def run(structure, input_type="cif", output_type="cif", l=1.2, h_i0=-2.0,
         output type is set to "files"
     """
     # Error handling on string params. Should spare users some annoyance.
-    i, o, m = input_type.lower(), output_type.lower(), method.lower()
-    if i not in ["cif", "json"]:
-        raise NotImplementedError("Input format '%s' is not supported!" % i)
+    o, m = output_type.lower(), method.lower()
     if o not in ["cif", "pdb", "car", "mol", "json", "object", "files"]:
         raise NotImplementedError("Output format '%s' is not supported!" % o)
     if m not in ["direct", "nonperiodic", "ewald"]:
         raise NotImplementedError("Method '%s' is not supported!" % m)
-    # If linked to mofgen, use it to handle json interconversion externally
-    if input_type == "json":
-        structure = format_converter.convert(structure, "json", "cif")
+    # If linked to openbabel, use it to handle json interconversion externally
+    if input_type != "cif":
+        structure = format_converter.convert(structure, input_type, "cif")
     # Calls libeqeq.so's run method, returning a string of data
     result = eqeq.run(structure, output_type, l, h_i0, charge_precision,
                       method, m_r, m_k, eta, ionization_data_path,
@@ -91,8 +91,8 @@ if __name__ == "__main__":
     parser.add_argument("input", type=str, help="An input cif file. Can be "
                         "either a filepath or the input data itself")
     parser.add_argument("--input-type", type=str, default="cif",
-                        help="Specifies input type. Options are 'cif' and"
-                        "'json'")
+                        help="Specifies input type. Can be anything supported "
+                        "by openbabel and 'json'")
     parser.add_argument("--output-type", type=str, default="files",
                         help="Specifies the output type. Currently, options "
                         "are 'cif', 'mol', 'pdb', 'car', 'json', and 'files'. "
@@ -126,7 +126,14 @@ if __name__ == "__main__":
                         "'chargecenters.dat'")
     args = parser.parse_args()
 
-    output = run(args.input, output_type=args.output_type, l=args.l,
+    try:
+        with open(args.input) as in_file:
+            args.input = in_file.read()
+    except IOError:
+        pass
+
+    output = run(args.input, input_type=args.input_type,
+                 output_type=args.output_type, l=args.l,
                  h_i0=args.hi0, charge_precision=args.charge_precision,
                  method=args.method, m_r=args.mr, m_k=args.mk, eta=args.eta,
                  ionization_data_path=args.ionization_data_path,
