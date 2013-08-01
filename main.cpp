@@ -75,8 +75,8 @@ void OutputPDBFormatFile(string filename);
 string OutputMOLData();
 void OutputMOLFormatFile(string filename); // Outputs 'RASPA' MOL file
 string OutputCARData();
-void OutputChargeListFile(string filename); // Outputs list of partial charges
-string OutputChargeData();
+void OutputJSONFormatFile(string filename); // Outputs list of partial charges
+string OutputJSONData();
 void OutputCARFormatFile(string filename);
 void Qeq();
 void RoundCharges(int digits); // Make *slight* adjustments to the charges for nice round numbers
@@ -207,7 +207,7 @@ char *run(const char *data, const char *outputType, double _lambda, float _hI0,
         OutputMOLFormatFile(inputFilename + buffer + ".mol");
         OutputPDBFormatFile(inputFilename + buffer + ".pdb");
         OutputCARFormatFile(inputFilename + buffer + ".car");
-        OutputChargeListFile(inputFilename + buffer + ".json");
+        OutputJSONFormatFile(inputFilename + buffer + ".json");
         return 0;
     // These options allow output streaming of string data
     } else if (type.compare("cif") == 0) {
@@ -219,7 +219,7 @@ char *run(const char *data, const char *outputType, double _lambda, float _hI0,
     } else if (type.compare("car") == 0) {
         outString = OutputCARData();
     } else if (type.compare("json") == 0 || type.compare("object") == 0) {
-        outString = OutputChargeData();
+        outString = OutputJSONData();
     } else {
         cerr << "Output type \"" << outputType << "\" not supported!" << endl;
         exit(1);
@@ -897,8 +897,8 @@ void OutputCARFormatFile(string filename) {
     OutputFile(filename, OutputCARData());
 }
 /*****************************************************************************/
-void OutputChargeListFile(string filename) {
-    OutputFile(filename, OutputChargeData());
+void OutputJSONFormatFile(string filename) {
+    OutputFile(filename, OutputJSONData());
 }
 /*****************************************************************************/
 string OutputCIFData() {
@@ -971,13 +971,13 @@ string OutputPDBData() {
     return stringStream.str();
 }
 /*****************************************************************************/
-string OutputChargeData() {
+string OutputJSONData() {
     ostringstream stringStream;
     stringStream << "[";
-    for (int i = 0; i < numAtoms - 1; i++) {
+    for (int i = 0; i < numAtoms; i++) {
         stringStream << Q[i] << ",";
     }
-    stringStream << Q[numAtoms - 1] << "]";
+    stringStream << Q[numAtoms] << "]";
     return stringStream.str();
 }
 /*****************************************************************************/
