@@ -218,7 +218,7 @@ char *run(const char *data, const char *outputType, double _lambda, float _hI0,
         outString = OutputMOLData();
     } else if (type.compare("car") == 0) {
         outString = OutputCARData();
-    } else if (type.compare("json") == 0 || type.compare("object") == 0) {
+    } else if (type.compare("json") == 0) {
         outString = OutputJSONData();
     } else {
         cerr << "Output type \"" << outputType << "\" not supported!" << endl;
@@ -974,10 +974,10 @@ string OutputPDBData() {
 string OutputJSONData() {
     ostringstream stringStream;
     stringStream << "[";
-    for (int i = 0; i < numAtoms; i++) {
+    for (int i = 0; i < numAtoms - 1; i++) {
         stringStream << Q[i] << ",";
     }
-    stringStream << Q[numAtoms] << "]";
+    stringStream << Q[numAtoms - 1] << "]";
     return stringStream.str();
 }
 /*****************************************************************************/

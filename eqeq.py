@@ -5,7 +5,7 @@ This is intended 1. to allow users to automate + simplify their workflows and
 2. to enable scaling of simulations to millions of structures.
 """
 from ctypes import cdll, c_char_p, c_int, c_double, c_float
-import json
+import json_formatter as json
 import os
 import sys
 
@@ -37,7 +37,7 @@ def run(structure, input_type="cif", output_type="cif", l=1.2, h_i0=-2.0,
         input_type: (Optional) Specifies input type. Can be anything supported
             by openbabel, as well as "json"
         output_type: (Optional) Specifies the output type. Currently, options
-            are "cif", "mol", "pdb", "car", "json", "object", and "files". The
+            are "cif", "mol", "pdb", "car", "json", "list", and "files". The
             first four return modified chemical data formats, "object" returns
             a Python object, "json" is that object serialized, and "files"
             saves files of all possible output types.
@@ -63,7 +63,7 @@ def run(structure, input_type="cif", output_type="cif", l=1.2, h_i0=-2.0,
     """
     # Error handling on string params. Should spare users some annoyance.
     o, m = output_type.lower(), method.lower()
-    if o not in ["cif", "pdb", "car", "mol", "json", "object", "files"]:
+    if o not in ["cif", "pdb", "car", "mol", "json", "list", "files"]:
         raise NotImplementedError("Output format '%s' is not supported!" % o)
     if m not in ["direct", "nonperiodic", "ewald"]:
         raise NotImplementedError("Method '%s' is not supported!" % m)
@@ -71,15 +71,18 @@ def run(structure, input_type="cif", output_type="cif", l=1.2, h_i0=-2.0,
     if input_type != "cif":
         structure = format_converter.convert(structure, input_type, "cif")
     # Calls libeqeq.so's run method, returning a string of data
-    result = eqeq.run(structure, output_type, l, h_i0, charge_precision,
-                      method, m_r, m_k, eta, ionization_data_path,
-                      charge_data_path)
+    result = eqeq.run(structure, ("json" if output_type == "list" else
+                      output_type), l, h_i0, charge_precision, method, m_r,
+                      m_k, eta, ionization_data_path, charge_data_path)
+    if output_type == "list":
+        return json.loads(result)
     # This option appends atoms in json/object data with a "charge" attribute
-    if output_type in ["json", "object"]:
+    if output_type == "json":
         obj = format_converter.convert(structure, "cif", "object")
-        for atom, charge in zip(obj["atoms"], json.loads(result)):
+        result = json.loads(result)
+        for atom, charge in zip(obj["atoms"], result):
             atom["charge"] = charge
-        result = obj if output_type == "object" else json.dumps(obj)
+        result = json.dumps(obj)
     return result
 
 

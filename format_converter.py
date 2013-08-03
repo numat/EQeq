@@ -110,7 +110,7 @@ def json_to_cif(mof):
                      % tuple([atom["element"], i, atom["element"]] +
                      cartesian_to_fractional(atom["location"], va, vb, vc))
                      for i, atom in enumerate(mof["atoms"]))
-    return cif
+    return cif + "\n"
 
 
 def get_angle(first_vector, second_vector):
