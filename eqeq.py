@@ -130,12 +130,6 @@ if __name__ == "__main__":
                         "'chargecenters.dat'")
     args = parser.parse_args()
 
-    try:
-        with open(args.input) as in_file:
-            args.input = in_file.read()
-    except IOError:
-        pass
-
     output = run(args.input, input_type=args.input_type,
                  output_type=args.output_type, l=args.l,
                  h_i0=args.hi0, charge_precision=args.charge_precision,
