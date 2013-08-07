@@ -180,6 +180,10 @@ char *run(const char *data, const char *outputType, double _lambda, float _hI0,
     // EQeq uses globals. The one below was causing errors when EQeq was run
     // more than once. This is a quick fix. Longer term, remove globals.
     Pos.clear();
+    J.clear();
+    X.clear();
+    Label.clear();
+    Symbol.clear();
 
     // Quick hack. If the string ends in ".cif", it's a file. Else, it's data.
     if (input.substr(input.length() - 4) == ".cif") {

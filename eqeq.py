@@ -38,7 +38,7 @@ def run(structure, input_type="cif", output_type="cif", l=1.2, h_i0=-2.0,
             by openbabel, as well as "json"
         output_type: (Optional) Specifies the output type. Currently, options
             are "cif", "mol", "pdb", "car", "json", "list", and "files". The
-            first four return modified chemical data formats, "object" returns
+            first four return modified chemical data formats, "list" returns
             a Python object, "json" is that object serialized, and "files"
             saves files of all possible output types.
         l: (Optional) Lambda, the dielectric screening parameter.
@@ -70,6 +70,7 @@ def run(structure, input_type="cif", output_type="cif", l=1.2, h_i0=-2.0,
     # If linked to openbabel, use it to handle json interconversion externally
     if input_type != "cif":
         structure = format_converter.convert(structure, input_type, "cif")
+    structure = structure.replace("\t", "  ")
     # Calls libeqeq.so's run method, returning a string of data
     result = eqeq.run(structure, ("json" if output_type == "list" else
                       output_type), l, h_i0, charge_precision, method, m_r,
