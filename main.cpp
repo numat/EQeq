@@ -947,7 +947,7 @@ string OutputCIFData() {
                    (aV[2]*bV[1]*cV[0] - aV[1]*bV[2]*cV[0] - aV[2]*bV[0]*cV[1] +
                    aV[0]*bV[2]*cV[1] + aV[1]*bV[0]*cV[2] - aV[0]*bV[1]*cV[2]);
 
-        stringStream<< "cg" << Symbol[i] << "\t" << Symbol[i] << "\t";
+        stringStream<< "Mof_" << Symbol[i] << "\t" << Symbol[i] << "\t";
         stringStream << a << "\t" << b << "\t" << c << "\t" << Q[i] << endl;
     }
 
