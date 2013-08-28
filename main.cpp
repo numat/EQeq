@@ -117,7 +117,7 @@ int chargePrecision = 3; // Number of digits to use for point charges
 int mR = 2;  int mK = 2;
 int aVnum = mR; int bVnum = mR; int cVnum = mR; // Number of unit cells to consider in per. calc. ("real space")
 int hVnum = mK; int jVnum = mK; int kVnum = mK; // Number of unit cells to consider in per. calc. ("frequency space")
-string method = "direct";
+string method = "ewald";
 
 // Function to compile down to C. Used by the Python wrapper.
 extern "C" {

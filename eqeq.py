@@ -27,7 +27,7 @@ DEFAULT_CHARGE_PATH = os.path.join(ROOT, "chargecenters.dat")
 
 
 def run(structure, input_type="cif", output_type="cif", l=1.2, h_i0=-2.0,
-        charge_precision=3, method="direct", m_r=2, m_k=2, eta=50.0,
+        charge_precision=3, method="ewald", m_r=2, m_k=2, eta=50.0,
         ionization_data_path=DEFAULT_IONIZATION_PATH,
         charge_data_path=DEFAULT_CHARGE_PATH):
     """Runs EQeq on the inputted structure, returning charge data.
