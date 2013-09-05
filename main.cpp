@@ -715,8 +715,7 @@ void LoadCIFFile(string filename) {
 void LoadCIFData(string data) {
     string cStr; // current string
     string tStr; // temp string
-    int sInd = 0;
-    int eInd = 0;
+    int sInd = 0, eInd = 0, iInd = 0;
 
     // Read in unit cell dimensions
     sInd = data.find("_cell_length_a") + 15;
@@ -777,7 +776,7 @@ void LoadCIFData(string data) {
         sInd = eInd2; // End of the previous line
         eInd2 = data.find("\n", eInd2 + 1); // End of the next line
         cStr = data.substr(sInd, eInd2 - sInd); // The line
-        if ((cStr.find("_",0) >=0) && (cStr.find("_",0) < cStr.size())) {
+        if ((cStr.find("_",0) >=0 && cStr.find("_",0) < cStr.size()) || cStr.length() < 20) {
             underscoreFound = true; // Under score found, skip to the next line
         } else {
             // Underscore not found, we are on a legitimate line of data
@@ -798,15 +797,15 @@ void LoadCIFData(string data) {
             underscoreFound = false;
 
             //Read atom label
-            sInd = cStr.find_first_of(" \t", 1);
+            iInd = cStr.find_first_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 0);
+            sInd = cStr.find_first_of(" \t", iInd);
 
             // Handles cases where EOF is hit before underscore found
             if (sInd == string::npos) {
                 break;
             }
 
-            tStr = cStr.substr(1, sInd-1);
-            //tempAtom.label = tStr;
+            tStr = cStr.substr(iInd, sInd-1);
             Label.push_back(tStr);
 
             // Read atom symbol
