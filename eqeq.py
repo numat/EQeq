@@ -14,7 +14,11 @@ try:
 except:
     sys.stderr.write("Openbabel not found. Format conversion unsupported.\n"
                      "Only use cif files for output, and cif/mol/pdb/car/files"
-                     " for output.")
+                     " for output.\n")
+
+sys.stderr.write("This version of EQeq is deprecated. Please switch to the "
+                 "version maintained by the openbabel project (see the README "
+                 "for more).\n")
 
 eqeq = cdll.LoadLibrary("/usr/lib/libeqeq.so")
 eqeq.run.argtypes = (c_char_p, c_char_p, c_double, c_float, c_int, c_char_p,
