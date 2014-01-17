@@ -1,9 +1,5 @@
-EQeq
-====
+# DEPRECATED
 
-Charge equilibration method for crystal structures.
-
-# NOTE
 The EQeq charge equilibration algorithm is now included as a feature in the
 [openbabel](http://openbabel.org/wiki/Main_Page) project, enabling its use with
 over 100 chemical file formats across multiple programming languages. As such,
@@ -13,16 +9,12 @@ openbabel.
 To run EQeq from openbabel, use these sample code snippets as a starting point:
 
 ```python
-# Python
-import pybel
-mol = pybel.readfile("cif", "filename.cif")
-pybel.ob.OBChargeModel_FindType("eqeq").ComputeCharges(mol.OBMol)
-partial_charges = [atom.partialcharge for atom in mol]
+# Python, `mol` is an instance of `pybel.Molecule`
+charges = mol.calccharges("eqeq")
 ```
 
 ```c++
-// C++
-OBMol inputMolecule;
+// C++, `inputMolecule` is an instance of `OBMol`
 OBChargeModel *eqeqCharges = OBChargeModel::FindType("eqeq");
 eqeqCharges->ComputeCharges(inputMolecule);
 vector<double> partialCharges = eqeqCharges->GetPartialCharges();
@@ -31,6 +23,12 @@ vector<double> partialCharges = eqeqCharges->GetPartialCharges();
 Other languages, file types, and charge models are also supported - read the
 openbabel docs for more.
 
+<br /><br /><br /><br /><br />
+
+EQeq
+====
+
+Charge equilibration method for crystal structures.
 ###Summary
 
 The source code in this program demonstrates the charge equilibration method described
